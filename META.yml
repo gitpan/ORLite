@@ -20,4 +20,4 @@ requires:
   DBD::SQLite: 1.14
   DBI: 1.58
   perl: 5.6.0
-version: 0.01
+version: 0.02
