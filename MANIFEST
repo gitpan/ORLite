@@ -19,6 +19,7 @@ t/02_basics.sql
 t/02_basics.t
 t/03_fk.sql
 t/03_fk.t
+t/04_readonly.t
 t/97_meta.t
 t/98_pod.t
 t/99_pmv.t

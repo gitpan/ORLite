@@ -7,9 +7,10 @@ SYNOPSIS
       use strict;
       use ORLite 'data/sqlite.db';
   
-      my @cool_kids = Foo::Person->select('where first_name = ?', 'Adam');
-  
-      1;
+      my @awesome = Foo::Person->select(
+         'where first_name = ?',
+         'Adam',
+      );
 
 DESCRIPTION
     THIS CODE IS EXPERIMENTAL AND SUBJECT TO CHANGE WITHOUT NOTICE
@@ -224,6 +225,13 @@ ROOT PACKAGE METHODS
     In general though, you should try to avoid the use of your own prepared
     statements if possible, although this is only a recommendation and by no
     means prohibited.
+
+  pragma
+      # Get the user_version for the schema
+      my $version = Foo::Bar->pragma('schema_version');
+
+    The "pragma" method provides a convenient method for fetching a pragma
+    for a datase. See the SQLite documentation for more details.
 
 TABLE PACKAGE METHODS
     The example root package Foo::Bar::TableName is used in any examples.
