@@ -20,7 +20,7 @@ BEGIN {
 
 use vars qw{$VERSION %DSN %DBH};
 BEGIN {
-	$VERSION = '0.11';
+	$VERSION = '0.12';
 	%DSN     = ();
 	%DBH     = ();
 }
@@ -50,6 +50,7 @@ sub import {
 			file     => $_[1],
 			readonly => undef, # Automatic
 			package  => undef, # Automatic
+			tables   => 1,
 		);
 	} elsif ( _HASH($_[1]) ) {
 		%params = %{ $_[1] };
@@ -61,6 +62,9 @@ sub import {
 	}
 	unless ( defined $params{readonly} ) {
 		$params{readonly} = ! -w $params{file};
+	}
+	unless ( defined $params{tables} ) {
+		$params{tables} = 1;
 	}
 	unless ( defined $params{package} ) {
 		$params{package} = scalar caller;
@@ -83,80 +87,27 @@ sub import {
 		die "Schema user_version mismatch (got $version, wanted $params{user_version})";
 	}
 
-	# Capture the raw schema information
-	my $tables   = $dbh->selectall_arrayref(
-		'select * from sqlite_master where type = ?',
-		{ Slice => {} }, 'table',
-	);
-	foreach my $table ( @$tables ) {
-		$table->{columns} = $dbh->selectall_arrayref(
-			"pragma table_info('$table->{name}')",
-			 { Slice => {} },
-		);
-	}
-	$dbh->disconnect;
-
-
-	# Generate the main additional table level metadata
-	my %tindex = map { $_->{name} => $_ } @$tables;
-	foreach my $table ( @$tables ) {
-		my @columns      = @{ $table->{columns} };
-		my @names        = map { $_->{name} } @columns;
-		$table->{cindex} = map { $_->{name} => $_ } @columns;
-
-		# Discover the primary key
-		$table->{pk}     = List::Util::first { $_->{pk} } @columns;
-		$table->{pk}     = $table->{pk}->{name} if $table->{pk};
-
-		# What will be the class for this table
-		$table->{class}  = ucfirst lc $table->{name};
-		$table->{class}  =~ s/_([a-z])/uc($1)/ge;
-		$table->{class}  = "${pkg}::$table->{class}";
-
-		# Generate various SQL fragments
-		my $sql = $table->{sql} = { create => $table->{sql} };
-		$sql->{cols}     = join ', ', map { '"' . $_ . '"' } @names;
-		$sql->{vals}     = join ', ', ('?') x scalar @columns;
-		$sql->{select}   = "select $table->{sql}->{cols} from $table->{name}";
-		$sql->{count}    = "select count(*) from $table->{name}";
-		$sql->{insert}   = join ' ',
-			"insert into $table->{name}" .
-			"( $table->{sql}->{cols} )"  .
-			" values ( $table->{sql}->{vals} )";
-	}
-
-	# Generate the foreign key metadata
-	foreach my $table ( @$tables ) {
-		# Locate the foreign keys
-		my %fk     = ();
-		my @fk_sql = $table->{sql}->{create} =~ /[(,]\s*(.+?REFERENCES.+?)\s*[,)]/g;
-
-		# Extract the details
-		foreach ( @fk_sql ) {
-			unless ( /^(\w+).+?REFERENCES\s+(\w+)\s*\(\s*(\w+)/ ) {
-				die "Invalid foreign key $_";
-			}
-			$fk{"$1"} = [ "$2", $tindex{"$2"}, "$3" ];
-		}
-		foreach ( @{ $table->{columns} } ) {
-			$_->{fk} = $fk{$_->{name}};
-		}
-	}
-
 	# Generate the support package code
 	my $code  = <<"END_PERL";
 package $pkg;
 
 use strict;
 
+my \$DSN = 'dbi:SQLite:$file';
+my \$DBH = undef;
+
 sub dsn {
-	\$ORLite::DSN{'$pkg'};
+	\$DSN;
 }
 
 sub dbh {
-	\$ORLite::DBH{'$pkg'} or
-	DBI->connect(\$ORLite::DSN{'$pkg'}) or
+	\$DBH or
+	\$_[0]->connect or
 	Carp::croak("connect: \$DBI::errstr");
+}
+
+sub connect {
+	DBI->connect(\$_[0]->dsn);
 }
 
 sub do {
@@ -200,39 +151,99 @@ END_PERL
 	# Add transaction support if not readonly
 	$code .= <<"END_PERL" unless $readonly;
 sub begin {
-	\$ORLite::DBH{'$pkg'} or
-	\$ORLite::DBH{'$pkg'} = DBI->connect(\$ORLite::DSN{'$pkg'}) or
+	\$DBH or
+	\$DBH = \$_[0]->connect or
 	Carp::croak("connect: \$DBI::errstr");
-	\$ORLite::DBH{'$pkg'}->begin_work;
+	\$DBH->begin_work;
 }
 
 sub commit {
-	\$ORLite::DBH{'$pkg'} or return 1;
-	\$ORLite::DBH{'$pkg'}->commit;
-	\$ORLite::DBH{'$pkg'}->disconnect;
-	delete \$ORLite::DBH{'$pkg'};
+	\$DBH or return 1;
+	\$DBH->commit;
+	\$DBH->disconnect;
+	undef \$DBH;
 	return 1;
 }
 
 sub rollback {
-	\$ORLite::DBH{'$pkg'} or return 1;
-	\$ORLite::DBH{'$pkg'}->rollback;
-	\$ORLite::DBH{'$pkg'}->disconnect;
-	delete \$ORLite::DBH{'$pkg'};
+	\$DBH or return 1;
+	\$DBH->rollback;
+	\$DBH->disconnect;
+	undef \$DBH;
 	return 1;
 }
 
 END_PERL
 
-	# Generate the per-table code
-	foreach my $table ( @$tables ) {
-		# Generate the accessors
-		my $sql       = $table->{sql};
-		my @columns   = @{ $table->{columns} };
-		my @names     = map { $_->{name} } @columns;
+	# Optionally generate the table classes
+	if ( $params{tables} ) {
+		# Capture the raw schema information
+		my $tables   = $dbh->selectall_arrayref(
+			'select * from sqlite_master where type = ?',
+			{ Slice => {} }, 'table',
+		);
+		foreach my $table ( @$tables ) {
+			$table->{columns} = $dbh->selectall_arrayref(
+				"pragma table_info('$table->{name}')",
+			 	{ Slice => {} },
+			);
+		}
 
-		# Generate the elements in all packages
-		$code .= <<"END_PERL";
+		# Generate the main additional table level metadata
+		my %tindex = map { $_->{name} => $_ } @$tables;
+		foreach my $table ( @$tables ) {
+			my @columns      = @{ $table->{columns} };
+			my @names        = map { $_->{name} } @columns;
+			$table->{cindex} = map { $_->{name} => $_ } @columns;
+
+			# Discover the primary key
+			$table->{pk}     = List::Util::first { $_->{pk} } @columns;
+			$table->{pk}     = $table->{pk}->{name} if $table->{pk};
+
+			# What will be the class for this table
+			$table->{class}  = ucfirst lc $table->{name};
+			$table->{class}  =~ s/_([a-z])/uc($1)/ge;
+			$table->{class}  = "${pkg}::$table->{class}";
+
+			# Generate various SQL fragments
+			my $sql = $table->{sql} = { create => $table->{sql} };
+			$sql->{cols}     = join ', ', map { '"' . $_ . '"' } @names;
+			$sql->{vals}     = join ', ', ('?') x scalar @columns;
+			$sql->{select}   = "select $table->{sql}->{cols} from $table->{name}";
+			$sql->{count}    = "select count(*) from $table->{name}";
+			$sql->{insert}   = join ' ',
+				"insert into $table->{name}" .
+				"( $table->{sql}->{cols} )"  .
+				" values ( $table->{sql}->{vals} )";
+		}
+
+		# Generate the foreign key metadata
+		foreach my $table ( @$tables ) {
+			# Locate the foreign keys
+			my %fk     = ();
+			my @fk_sql = $table->{sql}->{create} =~ /[(,]\s*(.+?REFERENCES.+?)\s*[,)]/g;
+
+			# Extract the details
+			foreach ( @fk_sql ) {
+				unless ( /^(\w+).+?REFERENCES\s+(\w+)\s*\(\s*(\w+)/ ) {
+					die "Invalid foreign key $_";
+				}
+				$fk{"$1"} = [ "$2", $tindex{"$2"}, "$3" ];
+			}
+			foreach ( @{ $table->{columns} } ) {
+				$_->{fk} = $fk{$_->{name}};
+			}
+		}
+
+		# Generate the per-table code
+		foreach my $table ( @$tables ) {
+			# Generate the accessors
+			my $sql       = $table->{sql};
+			my @columns   = @{ $table->{columns} };
+			my @names     = map { $_->{name} } @columns;
+
+			# Generate the elements in all packages
+			$code .= <<"END_PERL";
 package $table->{class};
 
 sub select {
@@ -253,11 +264,11 @@ sub count {
 
 END_PERL
 
-		# Generate the elements for tables with primary keys
-		if ( defined $table->{pk} and ! $readonly ) {
-			my $nattr = join "\n", map { "\t\t$_ => \$attr{$_}," } @names;
-			my $iattr = join "\n", map { "\t\t\$self->{$_},"       } @names;
-			$code .= <<"END_PERL";
+			# Generate the elements for tables with primary keys
+			if ( defined $table->{pk} and ! $readonly ) {
+				my $nattr = join "\n", map { "\t\t$_ => \$attr{$_}," } @names;
+				my $iattr = join "\n", map { "\t\t\$self->{$_},"       } @names;
+				$code .= <<"END_PERL";
 
 sub new {
 	my \$class = shift;
@@ -296,8 +307,8 @@ sub delete {
 
 END_PERL
 
-		# Generate the accessors
-		$code .= join "\n\n", map { $_->{fk} ? <<"END_DIRECT" : <<"END_ACCESSOR" } @columns;
+			# Generate the accessors
+			$code .= join "\n\n", map { $_->{fk} ? <<"END_DIRECT" : <<"END_ACCESSOR" } @columns;
 sub $_->{name} {
 	($_->{fk}->[1]->{class}\->select('where $_->{fk}->[1]->{pk} = ?', \$_[0]->{$_->{name}}))[0];
 }
@@ -307,8 +318,10 @@ sub $_->{name} {
 }
 END_ACCESSOR
 
+			}
 		}
 	}
+	$dbh->disconnect;
 
 	# Load the code
 	if ( $DEBUG ) {
