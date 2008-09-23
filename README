@@ -228,7 +228,7 @@ ROOT PACKAGE METHODS
 
   pragma
       # Get the user_version for the schema
-      my $version = Foo::Bar->pragma('schema_version');
+      my $version = Foo::Bar->pragma('user_version');
 
     The "pragma" method provides a convenient method for fetching a pragma
     for a datase. See the SQLite documentation for more details.
@@ -240,6 +240,8 @@ TABLE PACKAGE METHODS
 
 TO DO
     - Support for intuiting reverse relations from foreign keys
+
+    - Document the 'create' and 'table' params
 
 SUPPORT
     Bugs should be reported via the CPAN bug tracker at
