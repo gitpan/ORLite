@@ -13,10 +13,6 @@ SYNOPSIS
       );
 
 DESCRIPTION
-    THIS CODE IS EXPERIMENTAL AND SUBJECT TO CHANGE WITHOUT NOTICE
-
-    YOU HAVE BEEN WARNED!
-
     SQLite is a light weight single file SQL database that provides an
     excellent platform for embedded storage of structured data.
 
