@@ -5,7 +5,7 @@ author:
 build_requires:
   Test::More: 0.47
 distribution_type: module
-generated_by: 'Module::Install version 0.77'
+generated_by: 'Module::Install version 0.78'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -20,9 +20,9 @@ requires:
   DBD::SQLite: 1.14
   DBI: 1.58
   File::Spec: 0.80
-  File::Temp: 0.17
+  File::Temp: 0.20
   Params::Util: 0.33
   perl: 5.6.0
 resources:
   license: http://dev.perl.org/licenses/
-version: 1.18
+version: 1.19

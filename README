@@ -13,8 +13,8 @@ SYNOPSIS
       );
 
 DESCRIPTION
-    SQLite is a light weight single file SQL database that provides an
-    excellent platform for embedded storage of structured data.
+    SQLite is a light single file SQL database that provides an excellent
+    platform for embedded storage of structured data.
 
     However, while it is superficially similar to a regular server-side SQL
     database, SQLite has some significant attributes that make using it like
@@ -33,12 +33,13 @@ DESCRIPTION
     is designed specifically for SQLite and is aligned with its
     idiosyncracies.
 
-    ORLite is an object-relation system specifically for SQLite that follows
-    many of the same principles as the ::Tiny series of modules and has a
-    design that aligns directly to the capabilities of SQLite.
+    ORLite is an object-relation system specifically tailored for SQLite
+    that follows many of the same principles as the ::Tiny series of modules
+    and has a design and feature set that aligns directly to the
+    capabilities of SQLite.
 
     Further documentation will be available at a later time, but the
-    synopsis gives a pretty good idea of how it will work.
+    synopsis gives a pretty good idea of how it works.
 
 How it Works
     In short, ORLite discovers the schema of a SQLite database, and then
@@ -248,6 +249,9 @@ SUPPORT
 
 AUTHOR
     Adam Kennedy <adamk@cpan.org>
+
+SEE ALSO
+    ORLite::Mirror, ORLite::Migrate
 
 COPYRIGHT
     Copyright 2008 - 2009 Adam Kennedy.
