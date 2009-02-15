@@ -4,15 +4,17 @@ package ORLite;
 
 use 5.006;
 use strict;
-use Carp         ();
-use File::Spec   ();
-use File::Temp   ();
-use Params::Util qw{ _STRING _CLASS _HASHLIKE _CODELIKE };
-use DBI          ();
+use Carp           ();
+use File::Spec     ();
+use File::Temp     ();
+use File::Path     ();
+use File::Basename ();
+use Params::Util   qw{ _STRING _CLASS _HASHLIKE _CODELIKE };
+use DBI            ();
 
 use vars qw{$VERSION};
 BEGIN {
-	$VERSION = '1.19';
+	$VERSION = '1.20';
 
 	# DBD::SQLite has a bug that generates a spurious warning
 	# at compile time, so we need to temporarily disable them.
@@ -82,6 +84,13 @@ sub import {
 	# Connect to the database
 	my $file     = File::Spec->rel2abs($params{file});
 	my $created  = ! -f $params{file};
+	if ( $created ) {
+		# Create the parent directory
+		my $dir = File::Basename::dirname($file);
+		unless ( -d $dir ) {
+			File::Path::mkpath( $dir, { verbose => 0 } );
+		}
+	}
 	my $pkg      = $params{package};
 	my $readonly = $params{readonly};
 	my $dsn      = "dbi:SQLite:$file";
@@ -107,6 +116,8 @@ use strict;
 my \$DBH = undef;
 
 sub orlite { '$VERSION' }
+
+sub sqlite { '$file' }
 
 sub dsn { '$dsn' }
 
@@ -249,9 +260,9 @@ END_PERL
 		# Generate the per-table code
 		foreach my $table ( @$tables ) {
 			# Generate the accessors
-			my $sql       = $table->{sql};
-			my @columns   = @{ $table->{columns} };
-			my @names     = map { $_->{name} } @columns;
+			my $sql     = $table->{sql};
+			my @columns = @{ $table->{columns} };
+			my @names   = map { $_->{name} } @columns;
 
 			# Generate the elements in all packages
 			$code .= <<"END_PERL";
@@ -379,10 +390,10 @@ ORLite - Extremely light weight SQLite-specific ORM
 =head1 SYNOPSIS
 
   package Foo;
-  
+
   use strict;
   use ORLite 'data/sqlite.db';
-  
+
   my @awesome = Foo::Person->select(
      'where first_name = ?',
      'Adam',

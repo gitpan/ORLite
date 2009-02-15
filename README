@@ -3,10 +3,10 @@ NAME
 
 SYNOPSIS
       package Foo;
-  
+
       use strict;
       use ORLite 'data/sqlite.db';
-  
+
       my @awesome = Foo::Person->select(
          'where first_name = ?',
          'Adam',
