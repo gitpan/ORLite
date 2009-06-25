@@ -23,6 +23,8 @@ t/03_fk.t
 t/04_readonly.t
 t/05_notables.t
 t/06_create.t
+t/07_pk.sql
+t/07_pk.t
 t/97_meta.t
 t/98_pod.t
 t/99_pmv.t
