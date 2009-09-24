@@ -24,6 +24,7 @@ requires:
   DBI: 1.607
   File::Basename: 0
   File::Path: 2.04
+  File::Remove: 1.40
   File::Spec: 0.80
   File::Temp: 0.20
   Params::Util: 0.33
@@ -32,4 +33,4 @@ resources:
   ChangeLog: http://fisheye2.atlassian.com/changelog/cpan/trunk/ORLite
   license: http://dev.perl.org/licenses/
   repository: http://svn.ali.as/cpan/trunk/ORLite
-version: 1.25
+version: 1.26_01

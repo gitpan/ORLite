@@ -3,13 +3,33 @@ NAME
 
 SYNOPSIS
       package Foo;
-
-      use strict;
+      
+  # Simplest possible usage
+      
+  use strict;
       use ORLite 'data/sqlite.db';
-
-      my @awesome = Foo::Person->select(
+      
+  my @awesome = Foo::Person->select(
          'where first_name = ?',
          'Adam',
+      );
+      
+  package Bar;
+      
+  # All available options enabled
+      # Some options shown are mutually exclusive, this would not actually run
+      
+  use ORLite {
+          package      => 'My::ORM',
+          file         => 'data/sqlite.db',
+          user_version => 12,
+          tables       => [ 'table1', 'table2' ],
+          readonly     => 1,
+          prune        => 1,
+          create       => sub {
+              my $dbh = shift;
+              $dbh->do('CREATE TABLE foo ( bar TEXT NOT NULL )');
+          },
       );
 
 DESCRIPTION
