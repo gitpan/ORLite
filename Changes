@@ -1,5 +1,16 @@
 Changes for Perl extension ORLite
 
+1.36 Wed 27 Jan 2010
+	- Rolled back the Template::Tiny conversion as it ended up slowing
+	  down the code generation too much. I shall struggle on under the
+	  old method.
+
+1.35 Wed 27 Jan 2010
+	- Adding experimental support for accelerated XS accessors
+	  using Class::XSAccessor. ORLite itself will not introduce a
+	  dependency on this module, consumers of this feature will need
+	  to do it themselves.
+
 1.34 Tue 26 Jan 2010
 	- Major Change: Moved code generation from raw string appending to
 	  using Template::Tiny instead. This will enable some new and more

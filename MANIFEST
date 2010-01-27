@@ -31,6 +31,7 @@ t/09_badfile.t
 t/10_cleanup.sql
 t/10_cleanup.t
 t/11_cleanup.t
+t/12_xsaccessor.t
 t/97_meta.t
 t/98_pod.t
 t/99_pmv.t
