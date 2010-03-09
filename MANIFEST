@@ -36,7 +36,7 @@ t/13_array_basics.t
 t/14_array_fk.t
 t/15_array_xs.t
 t/16_array_create.t
-t/97_meta.t
-t/98_pod.t
-t/99_pmv.t
 t/lib/Test.pm
+xt/meta.t
+xt/pmv.t
+xt/pod.t

@@ -301,6 +301,29 @@ ROOT PACKAGE METHODS
     The "dbh" method returns a DBI::db object, or throws an exception on
     error.
 
+  connect
+      my $dbh = Foo::Bar->connect;
+
+    The "connect" method is provided for the (extremely rare) situation in
+    which you need a raw connection to the database, evading the normal
+    tracking and management provided of the ORM.
+
+    The use of raw connections in this manner is strongly discouraged, as
+    you can create fatal deadlocks in SQLite if either the core ORM or the
+    raw connection uses a transaction at any time.
+
+    To summarise, do not use this method unless you REALLY know what you are
+    doing.
+
+    YOU HAVE BEEN WARNED!
+
+  connected
+      my $active = Foo::Bar->connected;
+
+    The "connected" method provides introspection of the connection status
+    of the library. It returns true if there is any connection or
+    transaction open to the database, or false otherwise.
+
   begin
       Foo::Bar->begin;
 
