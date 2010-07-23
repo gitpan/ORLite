@@ -547,6 +547,26 @@ TABLE PACKAGE METHODS
     from time to time you may need it programatically. If you do need it,
     you can use the "table" method to get the table name.
 
+  table_info
+      # List the columns in the underlying table
+      my $columns = Foo::Bar::User->table_info;
+      foreach my $c ( @$columns ) {
+         print "Column $c->{name} $c->{type}";
+         print " not null" if $c->{notnull};
+         print " default $c->{dflt_value}" if defined $c->{dflt_value};
+         print " primary key" if $c->{pk};
+         print "\n";
+      }
+
+    The "table_info" method is a wrapper around the SQLite "table_info"
+    pragma, and provides simplified access to the column metadata for the
+    underlying table should you need it for some advanced function that
+    needs direct access to the column list.
+
+    Returns a reference to an "ARRAY" containing a list of columns, where
+    each column is a reference to a "HASH" with the keys "cid",
+    "dflt_value", "name", "notnull", "pk" and "type".
+
   new
       my $user = Foo::Bar::User->new(
           name => 'Your Name',
