@@ -222,6 +222,18 @@ OPTIONS
     class for every table in the main schema that is not prefixed with with
     "sqlite_".
 
+  cache
+      use ORLite {
+          file         => 'dbi:SQLite:sqlite.db',
+          user_version => 2,
+          cache        => 'cache/directory',
+      };
+
+    The "cache" option is used to reduce the time needed to scan the SQLite
+    database table structures and generate the code for them, by saving the
+    generated code to a cache directory and loading from that file instead
+    of generating it each time from scratch.
+
   cleanup
     When working with embedded SQLite database containing rapidly changing
     state data, it is important for database performance and general health
