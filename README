@@ -32,7 +32,7 @@ SYNOPSIS
           tables       => [ 'table1', 'table2' ],
           cleanup      => 'VACUUM',
           prune        => 1,
-      );
+      };
 
 DESCRIPTION
     SQLite is a light single file SQL database that provides an excellent

@@ -38,6 +38,8 @@ t/15_array_xs.t
 t/16_array_create.t
 t/17_cache.sql
 t/17_cache.t
+t/18_update.sql
+t/18_update.t
 t/lib/Test.pm
 xt/meta.t
 xt/pmv.t
