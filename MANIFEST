@@ -40,6 +40,8 @@ t/17_cache.sql
 t/17_cache.t
 t/18_update.sql
 t/18_update.t
+t/19_view.sql
+t/19_view.t
 t/lib/Test.pm
 xt/meta.t
 xt/pmv.t
