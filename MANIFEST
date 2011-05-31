@@ -43,6 +43,8 @@ t/18_update.t
 t/19_view.sql
 t/19_view.t
 t/20_shim.t
+t/21_normalize.sql
+t/21_normalize.t
 t/lib/Test.pm
 xt/meta.t
 xt/pmv.t
