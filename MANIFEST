@@ -14,6 +14,7 @@ LICENSE
 Makefile.PL
 MANIFEST			This list of files
 META.yml
+MYMETA.json
 README
 t/01_compile.t
 t/02_basics.sql
@@ -45,6 +46,8 @@ t/19_view.t
 t/20_shim.t
 t/21_normalize.sql
 t/21_normalize.t
+t/22_overlay.t
+t/lib/TableOne.pm
 t/lib/Test.pm
 xt/meta.t
 xt/pmv.t

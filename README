@@ -71,13 +71,18 @@ DESCRIPTION
     In the simplest form, your target root package "uses" ORLite, which will
     do the schema discovery and code generation at compile-time.
 
-    When called, ORLite generates two types of package.
+    When called, ORLite generates two types of packages.
 
     Firstly, it builds database connectivity, transaction support, and other
     purely database level functionality into your root namespace.
 
-    Then it will create one sub-package underneath the root package for each
-    table contained in the database.
+    Secondly, it will create one sub-package underneath the namespace of the
+    root module for each table or view it finds in the database.
+
+    Once the basic table support has been generated, it will also try to
+    load an "overlay" module of the same name. Thus, by created a
+    Foo::TableName module on disk containing "extra" code, you can extend
+    the original and add additional functionality to it.
 
 OPTIONS
     ORLite takes a set of options for the class construction at compile time
