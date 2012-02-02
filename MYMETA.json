@@ -42,7 +42,7 @@
             "File::Remove" : "1.40",
             "File::Spec" : "0.80",
             "File::Temp" : "0.20",
-            "Params::Util" : "0.33",
+            "Params::Util" : "1.00",
             "perl" : "5.006"
          }
       }
@@ -57,6 +57,6 @@
       },
       "x_ChangeLog" : "http://fisheye2.atlassian.com/changelog/cpan/trunk/ORLite"
    },
-   "version" : "1.51",
+   "version" : "1.52",
    "x_module_name" : "ORLite"
 }

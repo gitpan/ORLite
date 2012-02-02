@@ -8,13 +8,13 @@ use Carp              ();
 use File::Spec   0.80 ();
 use File::Path   2.08 ();
 use File::Basename  0 ();
-use Params::Util 0.33 ();
+use Params::Util 1.00 ();
 use DBI         1.607 ();
 use DBD::SQLite  1.27 ();
 
 use vars qw{$VERSION};
 BEGIN {
-	$VERSION = '1.51';
+	$VERSION = '1.52';
 }
 
 # Support for the 'prune' option
@@ -55,6 +55,7 @@ sub import {
 		shim       => 0,
 		tables     => 1,
 		views      => 0,
+		unicode    => 0,
 		x_update   => 0,
 	);
 	if ( defined Params::Util::_STRING($_[1]) ) {
@@ -133,11 +134,12 @@ sub import {
 	my $dbh = DBI->connect( $dsn, undef, undef, {
 		PrintError => 0,
 		RaiseError => 1,
+		$params{unicode} ? ( sqlite_unicode => 1 ) : ( ),
 	} );
 
 	# Schema custom creation support
 	if ( $created and Params::Util::_CODELIKE($params{create}) ) {
-		$params{create}->( $dbh );
+		$params{create}->($dbh);
 	}
 
 	# Check the schema version before generating
@@ -159,11 +161,14 @@ sub import {
 	my $cleanup    = $params{cleanup};
 	my $xsaccessor = $params{xsaccessor};
 	my $array      = $params{array};
+	my $unicode    = $params{unicode} ? "\n\t\tsqlite_unicode => 1," : '';
+	my $version    = $unicode ? '5.008005' : '5.006';
 
 	# Generate the support package code
 	my $code = <<"END_PERL";
 package $pkg;
 
+use $version;
 use strict;
 use Carp              ();
 use DBI         1.607 ();
@@ -184,7 +189,7 @@ sub dbh {
 sub connect {
 	DBI->connect( \$_[0]->dsn, undef, undef, {
 		PrintError => 0,
-		RaiseError => 1,
+		RaiseError => 1,$unicode
 	} );
 }
 
@@ -1103,6 +1108,13 @@ The C<shim> option is global. It will alter the structure of all table
 classes at once. However, unless you are making alterations to a class
 the impact of this different class structure should be zero.
 
+=head2 unicode
+
+You can use this option to tell L<ORLite> that your database uses unicode.
+
+At the moment, it just enables the C<sqlite_unicode> option while
+connecting to your database. There'll be more in the future.
+
 =head1 ROOT PACKAGE METHODS
 
 All ORLite root packages receive an identical set of methods for
@@ -1652,7 +1664,7 @@ L<ORLite::Mirror>, L<ORLite::Migrate>, L<ORLite::Pod>
 
 =head1 COPYRIGHT
 
-Copyright 2008 - 2011 Adam Kennedy.
+Copyright 2008 - 2012 Adam Kennedy.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.

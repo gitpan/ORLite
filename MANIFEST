@@ -47,6 +47,8 @@ t/20_shim.t
 t/21_normalize.sql
 t/21_normalize.t
 t/22_overlay.t
+t/23_unicode.sql
+t/23_unicode.t
 t/lib/TableOne.pm
 t/lib/Test.pm
 xt/meta.t
