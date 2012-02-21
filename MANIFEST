@@ -49,6 +49,8 @@ t/21_normalize.t
 t/22_overlay.t
 t/23_unicode.sql
 t/23_unicode.t
+t/24_rowid.sql
+t/24_rowid.t
 t/lib/TableOne.pm
 t/lib/Test.pm
 xt/meta.t
