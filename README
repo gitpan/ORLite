@@ -64,9 +64,9 @@ DESCRIPTION
     synopsis gives a pretty good idea of how it works.
 
   How ORLite Works
-    In short, ORLite discovers the schema of a SQLite database, and then
-    uses code generation to build a set of packages for talking to that
-    database.
+    ORLite discovers the schema of a SQLite database, and then generates the
+    code for a complete set of classes that let you work with the objects
+    stored in that database.
 
     In the simplest form, your target root package "uses" ORLite, which will
     do the schema discovery and code generation at compile-time.
@@ -625,10 +625,10 @@ TABLE PACKAGE METHODS
           age  => 23,
       );
 
-    The "new" constructor creates an anonymous object, without reading it
-    from or writing it to the database. It also won't do validation of any
-    kind, since ORLite is designed for use with embedded databases and
-    presumes that you know what you are doing.
+    The "new" constructor creates an anonymous object, without reading or
+    writing it to the database. It also won't do validation of any kind,
+    since ORLite is designed for use with embedded databases and presumes
+    that you know what you are doing.
 
   insert
       my $user = Foo::Bar::User->new(
@@ -637,7 +637,7 @@ TABLE PACKAGE METHODS
       )->insert;
 
     The "insert" method takes an existing anonymous object and inserts it
-    into the database, returning the object as a convenience.
+    into the database, returning the object back as a convenience.
 
     It provides the second half of the slower manual two-phase object
     construction process.
@@ -683,6 +683,35 @@ TABLE PACKAGE METHODS
 
     It returns a "Foo::Bar::User" object, or throws an exception if the
     object does not exist.
+
+  id
+    The "id" accessor is a convenience method that is added to your table
+    class to increase the readability of your code when ORLite detects
+    certain patterns of column naming.
+
+    For example, take the following definition where convention is that all
+    primary keys are the table name followed by "_id".
+
+      create table foo_bar (
+          foo_bar_id integer not null primary key,
+          name string not null,
+      )
+
+    When ORLite detects the use of this pattern, and as long as the table
+    does not have an "id" column, the additional "id" accessor will be added
+    to your class, making these expressions equivalent both in function and
+    performance.
+
+      my $foo_bar = My::FooBar->create( name => 'Hello' );
+      
+  # Column name accessor
+      $foo_bar->foo_bar_id;
+      
+  # Convenience id accessor
+      $foo_bar->id;
+
+    As you can see, the latter involves much less repetition and reads much
+    more cleanly.
 
   select
       my @users = Foo::Bar::User->select;
