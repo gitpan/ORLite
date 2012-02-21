@@ -179,7 +179,7 @@ OPTIONS
     level instead of letting the application do more work only to hit an
     inevitable SQLite error.
 
-    By default, the "reaodnly" option is based on the filesystem permissions
+    By default, the "readonly" option is based on the filesystem permissions
     of the SQLite database (which matches SQLite's own writability
     behaviour).
 

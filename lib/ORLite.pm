@@ -14,7 +14,7 @@ use DBD::SQLite  1.27 ();
 
 use vars qw{$VERSION};
 BEGIN {
-	$VERSION = '1.54';
+	$VERSION = '1.90';
 }
 
 # Support for the 'prune' option
@@ -56,8 +56,6 @@ sub import {
 		tables     => 1,
 		views      => 0,
 		unicode    => 0,
-		x_update   => 0,
-		x_rowid    => 0,
 	);
 	if ( defined Params::Util::_STRING($_[1]) ) {
 		# Support the short form "use ORLite 'db.sqlite'"
@@ -295,29 +293,6 @@ sub commit_begin {
 
 END_PERL
 
-	# Experimental update support
-	if ( $params{x_update} ) {
-		$code .= <<"END_PERL";
-
-### EXPERIMENTAL
-sub update {
-	my \$class = shift;
-	my \$table = shift;
-	my \$set   = shift;
-	my \@cols  = sort keys %\$set;
-	my \$sql   = 'update "' . \$table . '" set '
-	           . join ', ', map { "\\"\$_\\" = ?" } \@cols;
-	   \$sql  .= ' ' . shift if \@_;
-	return $pkg->do(
-		\$sql, {},
-		( map { \$set->{\$_} } \@cols ),
-		\@_,
-	);
-}
-
-END_PERL
-	}
-
 	# Cleanup and shutdown operations
 	if ( $cleanup ) {
 		$code .= <<"END_PERL";
@@ -367,11 +342,15 @@ END_PERL
 			$t->{class} =~ s/_([a-z])/uc($1)/ge;
 			$t->{class} = "${pkg}::$t->{class}";
 
-			# Load the column data
+			# Load the structural column list
 			my $columns = $t->{columns} = $dbh->selectall_arrayref(
 				"pragma table_info('$t->{name}')",
 			 	{ Slice => {} },
 			);
+
+			# The list of columns we will select, which can
+			# be different to the general list.
+			my $select = $t->{select} = [ @$columns ];
 
 			# Track array vs hash implementation on a per-table
 			# basis so that we can force views to always be done
@@ -384,13 +363,9 @@ END_PERL
 
 			# Track usage of rowid on a per-table basis because
 			# views don't always support rowid.
-			$t->{rowid} = $params{x_rowid};
-			if ( $t->{type} eq 'view' ) {
-				$t->{rowid} = 0;
-			}
+			$t->{rowid} = $t->{type} eq 'table';
 
 			# Analyze the primary keys structure
-			my $select = $t->{select} = [ @$columns ];
 			$t->{pk}  = [ grep { $_->{pk} } @$columns ];
 			$t->{pkn} = scalar @{$t->{pk}};
 			$t->{pk1} = $t->{pk}->[0] if $t->{pkn} == 1;
@@ -399,6 +374,7 @@ END_PERL
 				if ( $t->{pk1}->{name} eq $t->{name} . '_id' ) {
 					$t->{id} = $t->{pk1};
 				}
+
 			} elsif ( $t->{rowid} ) {
 				# Add rowid to the query
 				$t->{rowid} = {
@@ -632,8 +608,11 @@ END_PERL
 
 			# Generate the elements for tables with primary keys
 			if ( $t->{create} ) {
-				my $l = $t->{array} ? '['  : '{';
-				my $r = $t->{array} ? ']'  : '}';
+				my $l   = $t->{array} ? '['  : '{';
+				my $r   = $t->{array} ? ']'  : '}';
+				my $set = $t->{array}
+					? '$self->set( $_ => $set{$_} ) foreach keys %set;'
+					: '$self->{$_} = $set{$_} foreach keys %set;';
 				$code .= <<"END_PERL";
 sub new {
 	my \$class = shift;
@@ -659,19 +638,26 @@ $t->{pl_fill}
 	return \$self;
 }
 
-sub delete {
+sub update {
 	my \$self = shift;
-	return $pkg->do(
-		'delete from $t->{qname} where $t->{sql_where}',
+	my \%set  = \@_;
+	my \$rows = $pkg->do(
+		'update $t->{qname} set ' .
+		join( ', ', map { "\\"\$_\\" = ?" } keys \%set ) .
+		' where "rowid" = ?',
 		{},
-$t->{pl_where}
-	) if ref \$self;
-	Carp::croak("Must use truncate to delete all rows") unless \@_;
-	return $pkg->do(
-		'delete from $t->{qname} ' . shift,
-		{},
-		\@_,
+		values \%set,
+		\$self->rowid,
 	);
+	unless ( \$rows == 1 ) {
+		die "Expected to update 1 row, actually updated \$rows";
+	}
+	$set
+	return 1;
+}
+
+sub delete {
+	$pkg->do('delete from $t->{qname} where "rowid" = ?', {}, shift->rowid);
 }
 
 sub truncate {
@@ -719,7 +705,7 @@ ${id}${rowid}$t->{pl_accessor}
 
 END_PERL
 			} else {
-				if ( $t->{id} and $t->{rowid} ) {
+				if ( $t->{pk1} and $t->{rowid} ) {
 					$code .= <<"END_PERL";
 sub rowid {
 	\$_[0]->$t->{rowid}->{key};
@@ -750,35 +736,6 @@ sub $_->{name} {
 	($_->{fk}->[1]->{class}\->select('where \"$_->{fk}->[1]->{pk}->[0]->{name}\" = ?', \$_[0]->$_->{key}))[0];
 }
 END_PERL
-
-			# Add the experimental update method
-			if ( $t->{create} and $params{x_update} ) {
-				my @pk    = map { $_->{name} } @{$t->{pk}};
-				my $wsql  = join ' and ', map { "\"$_\" = ?" } @pk;
-				my $wattr = join ', ',    map { "\$self->$_" } @pk;
-				my $set   = $t->{array}
-					? '$self->set( $_ => $set{$_} ) foreach keys %set;'
-					: '$self->{$_} = $set{$_} foreach keys %set;';
-				$code .= <<"END_PERL";
-
-### EXPERIMENTAL
-sub update {
-	my \$self = shift;
-	my \%set  = \@_;
-	my \$rows = $pkg->do(
-		'update $t->{qname} set ' .
-		join( ', ', map { "\\"\$_\\" = ?" } keys \%set ) .
-		' where $wsql',
-		{}, values \%set, $wattr,
-	);
-	unless ( \$rows == 1 ) {
-		die "Expected to update 1 row, actually updated \$rows";
-	}
-	$set
-	return 1;
-}
-END_PERL
-			}
 		}
 	}
 
@@ -1054,7 +1011,7 @@ be run, resulting in an immediate "no such method" exception at the Perl
 level instead of letting the application do more work only to hit an
 inevitable SQLite error.
 
-By default, the C<reaodnly> option is based on the filesystem permissions
+By default, the C<readonly> option is based on the filesystem permissions
 of the SQLite database (which matches SQLite's own writability behaviour).
 
 However the C<readonly> option can be explicitly provided if you wish.

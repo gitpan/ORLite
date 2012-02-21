@@ -57,6 +57,6 @@
       },
       "x_ChangeLog" : "http://fisheye2.atlassian.com/changelog/cpan/trunk/ORLite"
    },
-   "version" : "1.54",
+   "version" : "1.90",
    "x_module_name" : "ORLite"
 }
