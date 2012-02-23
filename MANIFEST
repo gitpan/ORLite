@@ -51,6 +51,8 @@ t/23_unicode.sql
 t/23_unicode.t
 t/24_rowid.sql
 t/24_rowid.t
+t/25_blob.sql
+t/25_blob.t
 t/lib/TableOne.pm
 t/lib/Test.pm
 xt/meta.t
