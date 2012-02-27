@@ -7,14 +7,14 @@ use strict;
 use Carp              ();
 use File::Spec   0.80 ();
 use File::Path   2.08 ();
-use File::Basename  0 ();
+use File::Basename    ();
 use Params::Util 1.00 ();
 use DBI         1.607 ();
 use DBD::SQLite  1.27 ();
 
 use vars qw{$VERSION};
 BEGIN {
-	$VERSION = '1.91';
+	$VERSION = '1.92';
 }
 
 # Support for the 'prune' option
@@ -133,6 +133,7 @@ sub import {
 	my $dbh = DBI->connect( $dsn, undef, undef, {
 		PrintError => 0,
 		RaiseError => 1,
+		ReadOnly   => $params{create} ? 0 : 1,
 		$params{unicode} ? ( sqlite_unicode => 1 ) : ( ),
 	} );
 
@@ -156,10 +157,8 @@ sub import {
 	}
 
 	# Prepare to generate code
-	my $readonly   = $params{readonly};
 	my $cleanup    = $params{cleanup};
-	my $xsaccessor = $params{xsaccessor};
-	my $array      = $params{array};
+	my $readonly   = $params{readonly} ? "\n\t\tReadOnly => 1," : '';
 	my $unicode    = $params{unicode} ? "\n\t\tsqlite_unicode => 1," : '';
 	my $version    = $unicode ? '5.008005' : '5.006';
 
@@ -188,7 +187,7 @@ sub dbh {
 sub connect {
 	DBI->connect( \$_[0]->dsn, undef, undef, {
 		PrintError => 0,
-		RaiseError => 1,$unicode
+		RaiseError => 1,$readonly$unicode
 	} );
 }
 
@@ -239,9 +238,8 @@ sub iterate {
 	my \$sth   = \$class->prepare(shift);
 	\$sth->execute(\@_);
 	while ( \$_ = \$sth->fetchrow_arrayref ) {
-		\$call->() or last;
+		\$call->() or return 1;;
 	}
-	\$sth->finish;
 }
 
 sub begin {
@@ -325,12 +323,11 @@ END_PERL
 			'select * from sqlite_master where name not like ? and type in ( ?, ? )',
 			{ Slice => {} }, 'sqlite_%', 'table', 'view',
 		);
-		my %tindex = map { $_->{name} => $_ } @$tables;
 
 		# Capture the raw schema information and do first-pass work
 		foreach my $t ( @$tables ) {
 			# Convenience pre-quoted form of the table name
-			$t->{qname} = '"' . $t->{name} . '"';
+			$t->{qname} = $dbh->quote_identifier(undef, undef, $t->{name});
 
 			# What will be the class for this table
 			$t->{class} = $t->{name};
@@ -356,7 +353,7 @@ END_PERL
 			# basis so that we can force views to always be done
 			# array-wise (to compensate for some weird SQLite
 			# column quoting differences between tables and views
-			$t->{array} = $array;
+			$t->{array} = $params{array};
 			if ( $t->{type} eq 'view' ) {
 				$t->{array} = 1;
 			}
@@ -408,7 +405,7 @@ END_PERL
 
 			foreach my $c ( @$select ) {
 				# Convenience escaping for the column names
-				$c->{qname} = "\"$c->{name}\"";
+				$c->{qname} = $dbh->quote_identifier($c->{name});
 
 				# Affinity detection
 				if ( $c->{type} =~ /INT/i ) {
@@ -432,7 +429,6 @@ END_PERL
 			$t->{sql_icols}  = join ', ', map { $_->{qname} } @$columns;
 			$t->{sql_ivals}  = join ', ', ( '?' ) x scalar @$columns;
 			$t->{sql_select} = "select $t->{sql_scols} from $t->{qname}";
-			$t->{sql_count}  = "select count(*) from $t->{qname}";
 			$t->{sql_insert} =
 				"insert into $t->{qname} " .
 				"( $t->{sql_icols} ) " .
@@ -451,6 +447,7 @@ END_PERL
 				"\t\t\$self->$_->{key},"
 			} @$columns;
 
+			$t->{pl_fill} = '';
 			if ( $t->{pk1} ) {
 				$t->{pl_fill} =
 					"\t\$self->$t->{pk1}->{key} " .
@@ -460,16 +457,11 @@ END_PERL
 				$t->{pl_fill} =
 					"\t\$self->$t->{rowid}->{key} " .
 					"= \$dbh->func('last_insert_rowid');";
-			} else {
-				$t->{pl_fill} = '';
 			}
-
-			$t->{pl_where} = join "\n", map {
-				"\t\t\$self->$_->{key},"
-			} @{$t->{pk}};
 		}
 
 		# Generate the foreign key metadata
+		my %tindex = map { $_->{name} => $_ } @$tables;
 		foreach my $t ( @$tables ) {
 			# Locate the foreign keys
 			my %fk     = ();
@@ -543,7 +535,7 @@ sub select {
 
 sub count {
 	my \$class = shift;
-	my \$sql   = '$t->{sql_count} ';
+	my \$sql   = 'select count(*) from $t->{qname} ';
 	   \$sql  .= shift if \@_;
 	$pkg->selectrow_array( \$sql, {}, \@_ );
 }
@@ -666,7 +658,7 @@ sub update {
 		\$self->rowid,
 	);
 	unless ( \$rows == 1 ) {
-		die "Expected to update 1 row, actually updated \$rows";
+		Carp::croak("Expected to update 1 row, actually updated \$rows");
 	}
 	$set
 	return 1;
@@ -692,7 +684,7 @@ sub set {
 	my \$i    = {
 $t->{pl_accessor}
 	}->{\$_[0]};
-	die "Bad name '\$_[0]'" unless defined \$i;
+	Carp::croak("Bad name '\$_[0]'") unless defined \$i;
 	\$self->[\$i] = \$_[1];
 }
 
@@ -700,7 +692,7 @@ END_PERL
 			}
 
 			# Generate the boring accessors
-			if ( $xsaccessor ) {
+			if ( $params{xsaccessor} ) {
 				my $type    = $t->{create} ? 'accessors' : 'getters';
 				my $xsclass = $t->{array}
 					? 'Class::XSAccessor::Array'

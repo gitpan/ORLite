@@ -25,7 +25,6 @@ no_index:
 requires:
   DBD::SQLite: 1.27
   DBI: 1.607
-  File::Basename: 0
   File::Path: 2.08
   File::Remove: 1.40
   File::Spec: 0.80
@@ -36,4 +35,4 @@ resources:
   ChangeLog: http://fisheye2.atlassian.com/changelog/cpan/trunk/ORLite
   license: http://dev.perl.org/licenses/
   repository: http://svn.ali.as/cpan/trunk/ORLite
-version: 1.91
+version: 1.92
